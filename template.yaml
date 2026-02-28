@@ -1,0 +1,108 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: SIWE (Sign-In With Ethereum) minimal infrastructure (HTTP API + Lambda + DynamoDB)
+
+Parameters:
+  StageName:
+    Type: String
+    Default: prod
+  JwtSecret:
+    Type: String
+    NoEcho: true
+    Description: HMAC secret for signing session JWTs (HS256). Use a strong random value.
+
+Globals:
+  Function:
+    Runtime: nodejs20.x
+    Architectures: [arm64]
+    Timeout: 15
+    MemorySize: 256
+    Tracing: Active
+    Environment:
+      Variables:
+        JWT_ISSUER: "siwe-api"
+        JWT_AUDIENCE: "siwe-client"
+        JWT_TTL_SECONDS: "3600"
+
+Resources:
+  SiweNoncesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "siwe-auth-nonces-${AWS::StackName}"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+
+  SiweHttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: !Ref StageName
+      CorsConfiguration:
+        AllowOrigins:
+          - "*"
+        AllowHeaders:
+          - content-type
+          - authorization
+          - x-api-key
+        AllowMethods:
+          - OPTIONS
+          - GET
+          - POST
+        MaxAge: 86400
+
+  SiweFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "siwe-auth-lambda-${AWS::StackName}"
+      CodeUri: .
+      Handler: src/index.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SiweNoncesTable
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref SiweNoncesTable
+          JWT_SECRET: !Ref JwtSecret
+      Events:
+        Nonce:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SiweHttpApi
+            Path: /siwe/nonce
+            Method: POST
+        Verify:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SiweHttpApi
+            Path: /siwe/verify
+            Method: POST
+        Me:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SiweHttpApi
+            Path: /siwe/me
+            Method: GET
+        Session:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SiweHttpApi
+            Path: /siwe/session
+            Method: GET
+
+Outputs:
+  ApiBaseUrl:
+    Description: Base URL for SIWE HTTP API
+    Value: !Sub "https://${SiweHttpApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}"
+  NoncesTableName:
+    Description: DynamoDB table storing SIWE session nonces
+    Value: !Ref SiweNoncesTable
+  FunctionName:
+    Description: Lambda function name
+    Value: !Ref SiweFunction

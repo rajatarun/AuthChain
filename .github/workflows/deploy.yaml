@@ -16,6 +16,7 @@ jobs:
       AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
       STACK_NAME: ${{ vars.STACK_NAME || 'siwe-infra' }}
       STAGE_NAME: ${{ vars.STAGE_NAME || 'prod' }}
+      ASSUME_ROLE_ARN: arn:aws:iam::239571291755:role/teamweave-github-actions-sam-deployer
       JWT_SECRET: ${{ secrets.JWT_SECRET }}
 
     steps:
@@ -30,11 +31,10 @@ jobs:
       - name: Set up AWS SAM CLI
         uses: aws-actions/setup-sam@v2
 
-      - name: Configure AWS credentials
+      - name: Configure AWS (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ env.ASSUME_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Install dependencies

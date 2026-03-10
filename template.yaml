@@ -44,6 +44,16 @@ Resources:
     Type: AWS::Serverless::HttpApi
     Properties:
       StageName: !Ref StageName
+      Auth:
+        DefaultAuthorizer: SiweLambdaAuthorizer
+        Authorizers:
+          SiweLambdaAuthorizer:
+            FunctionArn: !GetAtt SiweAuthorizerFunction.Arn
+            AuthorizerPayloadFormatVersion: 2.0
+            EnableSimpleResponses: true
+            Identity:
+              Headers:
+                - Authorization
       CorsConfiguration:
         AllowOrigins:
           - "*"
@@ -77,12 +87,16 @@ Resources:
             ApiId: !Ref SiweHttpApi
             Path: /siwe/nonce
             Method: POST
+            Auth:
+              Authorizer: NONE
         Verify:
           Type: HttpApi
           Properties:
             ApiId: !Ref SiweHttpApi
             Path: /siwe/verify
             Method: POST
+            Auth:
+              Authorizer: NONE
         Me:
           Type: HttpApi
           Properties:
@@ -96,6 +110,28 @@ Resources:
             Path: /siwe/session
             Method: GET
 
+  SiweAuthorizerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub "siwe-authorizer-lambda-${AWS::StackName}"
+      CodeUri: .
+      Handler: src/authorizer.handler
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref SiweNoncesTable
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref SiweNoncesTable
+          JWT_SECRET: !Ref JwtSecret
+
+  SiweAuthorizerInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref SiweAuthorizerFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${SiweHttpApi}/authorizers/*"
+
 Outputs:
   ApiBaseUrl:
     Description: Base URL for SIWE HTTP API
@@ -106,3 +142,6 @@ Outputs:
   FunctionName:
     Description: Lambda function name
     Value: !Ref SiweFunction
+  AuthorizerFunctionArn:
+    Description: Lambda authorizer function ARN
+    Value: !GetAtt SiweAuthorizerFunction.Arn

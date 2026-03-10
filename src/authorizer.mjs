@@ -26,20 +26,23 @@ async function nonceExists(nonce) {
 
 export const handler = async (event) => {
   try {
+    const authHeader = event?.headers?.authorization ?? event?.headers?.Authorization;
+    const token = extractBearerToken(authHeader);
+
+    // Only enforce authentication for admin feature.
+    // Any request without a token is authorized by default.
+    if (!token) return { isAuthorized: true };
+
     if (!JWT_SECRET) {
       console.error("JWT_SECRET is not configured");
       return { isAuthorized: false };
     }
 
-    const authHeader = event?.headers?.authorization ?? event?.headers?.Authorization;
-    const token = extractBearerToken(authHeader);
-    if (!token) return { isAuthorized: false };
-
     const payload = jwt.verify(token, JWT_SECRET);
     const feature = payload?.feature ? String(payload.feature).toLowerCase() : "";
     const nonce = payload?.nonce;
 
-    if (feature === "siwe") {
+    if (feature !== "admin") {
       return {
         isAuthorized: true,
         context: {
@@ -49,6 +52,7 @@ export const handler = async (event) => {
         }
       };
     }
+
 
     if (!nonce) return { isAuthorized: false };
 

@@ -36,7 +36,19 @@ export const handler = async (event) => {
     if (!token) return { isAuthorized: false };
 
     const payload = jwt.verify(token, JWT_SECRET);
+    const feature = payload?.feature ? String(payload.feature).toLowerCase() : "";
     const nonce = payload?.nonce;
+
+    if (feature === "siwe") {
+      return {
+        isAuthorized: true,
+        context: {
+          sub: payload?.sub ? String(payload.sub) : "",
+          address: payload?.address ? String(payload.address) : "",
+          nonce: nonce ? String(nonce) : ""
+        }
+      };
+    }
 
     if (!nonce) return { isAuthorized: false };
 

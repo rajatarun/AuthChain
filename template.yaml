@@ -50,7 +50,7 @@ Resources:
           SiweLambdaAuthorizer:
             FunctionArn: !GetAtt SiweAuthorizerFunction.Arn
             AuthorizerPayloadFormatVersion: 2.0
-            EnableSimpleResponses: true
+            EnableSimpleResponses: false
             Identity:
               Headers:
                 - Authorization

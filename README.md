@@ -28,6 +28,37 @@ This allows applications to authenticate users without storing passwords, privat
 
 ---
 
+## Documentation & Architecture
+
+| File | Description |
+|------|-------------|
+| [`CLAUDE.md`](./CLAUDE.md) | AI assistant guide: key commands, env vars, gotchas, architecture summary |
+| [`docs/architecture.md`](./docs/architecture.md) | Detailed architecture: components, data flow, design decisions |
+| [`docs/diagrams/c4_architecture.puml`](./docs/diagrams/c4_architecture.puml) | C4 Context + Container PlantUML source |
+| [`docs/diagrams/c4_architecture.png`](./docs/diagrams/c4_architecture.png) | Rendered C4 diagram (PNG) |
+| [`docs/diagrams/aws_architecture.puml`](./docs/diagrams/aws_architecture.puml) | AWS-icon PlantUML source |
+| [`docs/diagrams/aws_architecture.png`](./docs/diagrams/aws_architecture.png) | Rendered AWS architecture diagram (PNG) |
+| [`docs/diagrams/c4lib/`](./docs/diagrams/c4lib/) | Local clone of C4-PlantUML stdlib |
+| [`docs/diagrams/awslib/`](./docs/diagrams/awslib/) | Local clone of AWS icons for PlantUML |
+
+### Re-rendering Diagrams
+
+```bash
+# Install prerequisites (one-time)
+sudo apt-get install -y default-jre graphviz
+wget -q https://github.com/plantuml/plantuml/releases/latest/download/plantuml.jar \
+     -O /usr/local/bin/plantuml.jar
+
+# Render from the diagrams directory
+cd docs/diagrams
+java -jar /usr/local/bin/plantuml.jar -DRELATIVE_INCLUDE=local -tpng c4_architecture.puml
+java -jar /usr/local/bin/plantuml.jar -tpng aws_architecture.puml
+```
+
+> **Note:** The `-DRELATIVE_INCLUDE=local` flag (passed as a PlantUML argument, not a JVM `-D` flag) tells the C4 library to use locally cloned files instead of fetching from the internet.
+
+---
+
 ## 🏗 Architecture Overview
 
 **Flow:**

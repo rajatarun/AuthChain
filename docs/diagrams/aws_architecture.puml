@@ -1,0 +1,105 @@
+@startuml aws_architecture
+skinparam defaultFontName Helvetica
+skinparam defaultFontSize 12
+skinparam ArrowFontSize 11
+skinparam linetype ortho
+skinparam nodesep 60
+skinparam ranksep 80
+
+!define AWSLIB awslib/aws-icons-for-plantuml/dist
+
+!include AWSLIB/AWSCommon.puml
+!include AWSLIB/NetworkingContentDelivery/APIGateway.puml
+!include AWSLIB/Compute/Lambda.puml
+!include AWSLIB/Database/DynamoDB.puml
+!include AWSLIB/Database/RDS.puml
+!include AWSLIB/Storage/SimpleStorageService.puml
+!include AWSLIB/ArtificialIntelligence/Bedrock.puml
+!include AWSLIB/ManagementGovernance/CloudFormation.puml
+!include AWSLIB/ManagementGovernance/CloudWatch.puml
+!include AWSLIB/SecurityIdentityCompliance/IAMIdentityCenter.puml
+!include AWSLIB/DeveloperTools/XRay.puml
+
+title AuthChain — AWS Architecture Diagram\n(us-east-1 / Serverless)
+
+' ── External actors ──────────────────────────────────────────────
+actor "Web3 User\n(dApp / Browser)" as User #LightBlue
+actor "Admin User" as Admin #LightGreen
+actor "GitHub Actions\n(CI/CD)" as CICD #LightYellow
+
+' ── AWS Account boundary ─────────────────────────────────────────
+rectangle "AWS Account (us-east-1)" {
+
+    ' ── API Layer ───────────────────────────────────────────────
+    rectangle "API Layer" {
+        APIGateway(apigw, "HTTP API (v2)\nsiwe-infra-prod", "Handles routing, CORS,\nauthorizer integration")
+    }
+
+    ' ── Compute ─────────────────────────────────────────────────
+    rectangle "Lambda Functions (ARM64 / Node.js 20)" {
+        Lambda(authorizer, "SIWEAuthorizer\nLambda", "JWT validation\nIAM policy emit\nFeature-gated auth\n(siwe vs admin)")
+        Lambda(handler, "AuthHandler\nLambda", "SIWE nonce / verify\nJWT issuance\nRAG ingest + chat")
+    }
+
+    ' ── Data Layer ──────────────────────────────────────────────
+    rectangle "Data Layer" {
+        DynamoDB(dynamodb, "Nonces Table\n(DynamoDB)", "One-time nonces\nTTL: 5 min\nAnti-replay store")
+        RDS(postgres, "PostgreSQL + pgvector\n(RDS / Aurora)", "rag_documents table\nrag_chunks table\nCosine similarity search")
+        SimpleStorageService(s3, "Document Store\n(S3)", "Source PDFs, DOCX\nTXT, MD, JSON, CSV\nRead-only by Lambda")
+    }
+
+    ' ── AI / ML Layer ───────────────────────────────────────────
+    rectangle "AI / ML Services (Bedrock)" {
+        Bedrock(bedrock_embed, "Titan Embed\n(Bedrock)", "Text vectorisation\namazon.titan-embed-text-v1\nEMBED_DIM=1536")
+        Bedrock(bedrock_llm, "Claude LLM\n(Bedrock)", "Answer generation\nConfigurable model ID\nRAG context window")
+        Bedrock(bedrock_guardrail, "Bedrock Guardrail\n(ID: 5o1zncxdyabz)", "Content safety filtering\nApplied to inputs\nand LLM outputs")
+    }
+
+    ' ── Infra / Ops ─────────────────────────────────────────────
+    rectangle "Infrastructure & Observability" {
+        CloudFormation(cfn, "SAM / CloudFormation\n(Stack: siwe-infra)", "IaC template.yaml\nParameters: StageName,\nJwtSecret")
+        CloudWatch(xray, "X-Ray / CloudWatch", "Distributed tracing\nLambda metrics\nActive tracing enabled")
+        IAMIdentityCenter(iam, "IAM Roles", "Lambda exec role\nLeast-privilege policies\nOIDC for GitHub Actions")
+    }
+}
+
+' ── Relationships ────────────────────────────────────────────────
+
+' User → API Gateway
+User --> apigw : "POST /siwe/nonce\nPOST /siwe/verify\nGET /siwe/me\nPOST /chat"
+Admin --> apigw : "POST /ingest\n(admin Bearer JWT)"
+
+' API Gateway → Authorizer (protected routes)
+apigw --> authorizer : "Invoke authorizer\n(protected routes)"
+authorizer --> apigw : "IAM Allow/Deny policy"
+
+' API Gateway → Handler
+apigw --> handler : "Forward request\n(authorized)"
+
+' Handler → DynamoDB
+handler --> dynamodb : "Nonce CRUD\n(AWS SDK v3)"
+
+' Handler → Bedrock
+handler --> bedrock_embed : "Embed chunks\n& questions"
+handler --> bedrock_llm : "Generate answers\n(RAG context)"
+handler --> bedrock_guardrail : "Safety filter\ninput + output"
+
+' Handler → S3
+handler --> s3 : "List + GetObject\n(document ingest)"
+
+' Handler → PostgreSQL
+handler --> postgres : "UPSERT chunks\nVector search\n(cosine distance)"
+
+' Tracing
+handler ..> xray : "X-Ray traces"
+authorizer ..> xray : "X-Ray traces"
+
+' CI/CD → CloudFormation
+CICD --> cfn : "sam deploy\n(OIDC auth)"
+cfn --> apigw : "provisions"
+cfn --> handler : "provisions"
+cfn --> authorizer : "provisions"
+cfn --> dynamodb : "provisions"
+cfn --> iam : "provisions roles"
+
+@enduml

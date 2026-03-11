@@ -1,0 +1,77 @@
+@startuml c4_architecture
+!include c4lib/C4-PlantUML/C4_Context.puml
+!include c4lib/C4-PlantUML/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+
+title AuthChain — C4 Context + Container Diagram
+
+' ============================================================
+' CONTEXT DIAGRAM
+' ============================================================
+
+Person(user, "Web3 User", "Authenticates via Ethereum wallet (MetaMask, WalletConnect, etc.)")
+Person(admin, "Admin User", "Ingests documents and manages content via admin JWT")
+Person(developer, "Developer", "Deploys and operates the system via GitHub Actions")
+
+System(authchain, "AuthChain", "Serverless Web3 authentication gateway with RAG document Q&A")
+
+System_Ext(ethereum, "Ethereum Network", "Public blockchain — provides wallet identity and message signing (EIP-4361)")
+System_Ext(github, "GitHub", "Source control and CI/CD (GitHub Actions with OIDC)")
+System_Ext(document_sources, "Document Sources", "PDF, DOCX, TXT, Markdown and other document files")
+
+Rel(user, authchain, "Authenticate with Ethereum wallet, query documents", "HTTPS / REST")
+Rel(admin, authchain, "Ingest documents, manage content", "HTTPS / REST")
+Rel(developer, github, "Push code, trigger deployments", "Git / HTTPS")
+Rel(github, authchain, "Deploy via SAM / CloudFormation", "AWS OIDC + SAM")
+Rel(authchain, ethereum, "Verify EIP-4361 signatures (client-side signing, server-side verification)", "SIWE library")
+Rel(admin, document_sources, "Uploads documents", "S3 / HTTPS")
+
+' ============================================================
+' CONTAINER DIAGRAM
+' ============================================================
+
+System_Boundary(authchain_boundary, "AuthChain — AWS Serverless Platform") {
+
+    Container(api_gateway, "API Gateway", "AWS HTTP API (v2)", "Routes HTTP requests, enforces CORS, invokes Lambda authorizer for protected routes")
+
+    Container(authorizer_lambda, "SIWEAuthorizer Lambda", "Node.js 20 / ARM64", "Validates JWT Bearer tokens using HS256. Applies feature-based policy (siwe vs admin). Returns IAM Allow/Deny policy to API Gateway.")
+
+    Container(handler_lambda, "AuthHandler Lambda", "Node.js 20 / ARM64", "Main business logic. Handles SIWE nonce generation + verification, JWT issuance, document ingestion, and RAG chat responses.")
+
+    ContainerDb(dynamodb, "Nonce Store", "Amazon DynamoDB", "Stores one-time SIWE nonces with TTL (5 min). Prevents replay attacks. Auto-expires via DynamoDB TTL feature.")
+
+    ContainerDb(postgres, "Vector Store", "PostgreSQL + pgvector\n(RDS / Aurora)", "Stores document chunks and embedding vectors. Enables cosine-similarity vector search for RAG retrieval. Tables: rag_documents, rag_chunks.")
+
+    Container(s3, "Document Store", "Amazon S3", "Source of truth for raw documents (PDF, DOCX, TXT, MD, JSON, CSV). Read by ingestion pipeline.")
+
+    Container(bedrock, "AI Services", "Amazon Bedrock", "Provides:\n• Titan Embeddings (chunk/query vectorisation)\n• Claude LLM (answer generation)\n• Guardrails (content safety on I/O)")
+
+    Container(cloudformation, "Infrastructure", "AWS SAM / CloudFormation", "Defines and provisions all AWS resources. Deployed by GitHub Actions via OIDC.")
+
+    Container(xray, "Observability", "AWS X-Ray", "Distributed tracing for Lambda invocations and downstream calls.")
+}
+
+' API Gateway relationships
+Rel(user, api_gateway, "REST calls", "HTTPS")
+Rel(admin, api_gateway, "REST calls (admin JWT)", "HTTPS")
+
+' Authorizer flow
+Rel(api_gateway, authorizer_lambda, "Invoke on protected routes", "Lambda invoke")
+Rel(authorizer_lambda, api_gateway, "IAM Allow/Deny policy", "JSON policy")
+
+' Handler flows
+Rel(api_gateway, handler_lambda, "Forward authenticated requests", "Lambda invoke")
+Rel(handler_lambda, dynamodb, "Read/write/delete nonces", "AWS SDK v3")
+Rel(handler_lambda, s3, "List and read documents", "AWS SDK v3")
+Rel(handler_lambda, bedrock, "Embed text, generate answers, apply guardrails", "AWS SDK v3")
+Rel(handler_lambda, postgres, "Store/query document chunks and vectors", "pg (TCP)")
+
+' Observability
+Rel(handler_lambda, xray, "Traces", "X-Ray SDK")
+Rel(authorizer_lambda, xray, "Traces", "X-Ray SDK")
+
+' CI/CD
+Rel(github, cloudformation, "Deploy stack", "AWS SAM + OIDC")
+
+@enduml

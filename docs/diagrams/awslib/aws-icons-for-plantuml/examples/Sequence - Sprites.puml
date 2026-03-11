@@ -1,0 +1,35 @@
+@startuml Sequence Diagram - Sprites
+'Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+'SPDX-License-Identifier: MIT (For details, see https://github.com/awslabs/aws-icons-for-plantuml/blob/master/LICENSE)
+
+' Uncomment the line below for "dark mode" styling
+'!$AWS_DARK = true
+
+!define AWSPuml https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v22.0/dist
+!include AWSPuml/AWSCommon.puml
+!include AWSPuml/Compute/all.puml
+!include AWSPuml/NetworkingContentDelivery/APIGateway.puml
+!include AWSPuml/General/Internetalt1.puml
+!include AWSPuml/Database/DynamoDB.puml
+
+'Hide the bottom boxes / Use filled triangle arrowheads
+hide footbox
+skinparam style strictuml
+
+actor User as user
+'Instead of using ...Participant(), native sprites can be used in monochrome
+participant "<$APIGateway>\nCredit Card System\nAll methods are POST" as api
+'Or skinned with colors (pulled from each sprite file) and with different layout of sprite to text
+participant "<color:$AWS_COLOR_SMILE><$Lambda></color>\nAuthorizeCard\nReturns status" as lambda
+participant "PaymentTransactions\n<color:$AWS_COLOR_NEBULA><$DynamoDB></color>\nsortkey=transaction_id+token" as db
+participant "Authorizer\nReturns status and token\n<color:$AWS_FG_COLOR><$Internetalt1></color>" as processor
+
+user -> api: Process transaction\nPOST /prod/process
+api -> lambda: Invokes lambda with cardholder details
+lambda -> processor: Submit via API token\ncard number, expiry, CID
+processor -> processor: Validate and create token
+processor -> lambda: Returns status code and token
+lambda -> db: PUT transaction id, token
+lambda -> api: Returns\nstatus code, transaction id
+api -> user: Returns status code
+@enduml

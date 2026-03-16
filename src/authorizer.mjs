@@ -29,6 +29,17 @@ async function nonceExists(nonce) {
   return false;
 }
 
+function wildcardArn(methodArn) {
+  if (!methodArn || methodArn === "*") return "*";
+  // methodArn: arn:aws:execute-api:{region}:{accountId}:{apiId}/{stage}/{verb}/{path}
+  // Wildcard to cover all routes on the same API/stage so cached policies remain valid
+  const slash = methodArn.indexOf("/");
+  if (slash === -1) return "*";
+  const arnPrefix = methodArn.slice(0, slash);
+  const stage = methodArn.slice(slash + 1).split("/")[0];
+  return `${arnPrefix}/${stage}/*`;
+}
+
 function generatePolicy(principalId, effect, resource, context = {}) {
   return {
     principalId,
@@ -38,7 +49,7 @@ function generatePolicy(principalId, effect, resource, context = {}) {
         {
           Action: "execute-api:Invoke",
           Effect: effect,
-          Resource: resource || "*",
+          Resource: wildcardArn(resource),
         },
       ],
     },

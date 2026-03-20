@@ -1,0 +1,117 @@
+@startuml Groups
+'Copyright 2019 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+'SPDX-License-Identifier: MIT (For details, see https://github.com/awslabs/aws-icons-for-plantuml/blob/master/LICENSE)
+
+' Uncomment the line below for "dark mode" styling
+'!$AWS_DARK = true
+
+!define AWSPuml https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v22.0/dist
+!include AWSPuml/AWSCommon.puml
+!include AWSPuml/Groups/all.puml
+
+' Groups are rectangles with a custom style using stereotype - need to hide
+hide stereotype
+skinparam linetype ortho
+
+' create a "filler" rectangle to give empty groups some volume
+skinparam rectangle<<filler>> {
+  BackgroundColor #Transparent
+  BorderThickness 0
+}
+
+!$fillerindex = 0
+!function $filler($newline="")
+!$fillerindex = $fillerindex + 1
+!return "rectangle " + %chr(34) + "                    " + $newline + %chr(34) + " as spacer" + $fillerindex + " <<filler>>"
+!endfunction
+
+' similar layout to "Groups" slide from AWS-Architecture-Icons-Deck
+AWSCloudGroup(awscloud) {
+  $filler()
+}
+AWSCloudAltGroup(cloudalt) { 
+  $filler()
+}
+RegionGroup(region) {
+  $filler()
+}
+AvailabilityZoneGroup(az) {
+  $filler()
+}
+SecurityGroupGroup(sg)  {
+  $filler()
+}
+AutoScalingGroupGroup(asg) {
+  $filler()
+}
+VPCGroup(vpc, "Virtual private\l\t cloud (VPC)") {
+  $filler()
+}
+PrivateSubnetGroup(private) {
+  $filler()
+}
+PublicSubnetGroup(public) {
+  $filler()
+}
+ServerContentsGroup(server) {
+  $filler()
+}
+CorporateDataCenterGroup(dc, "Corporate\l\t data center") {
+  $filler()
+}
+EC2InstanceContentsGroup(instance, "EC2 instance\l\t contents") {
+  $filler()
+}
+SpotFleetGroup(sf) {
+  $filler()
+}
+AWSAccountGroup(account) {
+  $filler()
+}
+IoTGreengrassDeploymentGroup(iotgd, "AWS IoT\l\t Greengrass\l\t Deployment") {
+  $filler()
+}
+IoTGreengrassGroup(iotg, "AWS IoT\l\t Greengrass") {
+  $filler()
+}
+ElasticBeanstalkContainerGroup(beanstalk, "Elastic Beanstalk\l\t container") {
+  $filler()
+}
+StepFunctionsWorkflowGroup(sfw, "AWS Step\l\t Functions\l\t workflow") {
+  $filler()
+}
+GenericGroup(g1)  {
+  $filler()
+}
+GenericAltGroup(g2)  {
+  $filler()
+}
+
+' row 1 layout
+awscloud -[hidden]r-> cloudalt
+cloudalt -[hidden]r-> region 
+region -[hidden]r-> az
+az -[hidden]r-> sg
+cloudalt -[hidden]r-> region
+
+' row 2 layout
+asg -[hidden]up-> awscloud
+asg -[hidden]right-> vpc
+vpc -[hidden]right-> private
+private -[hidden]right-> public
+public -[hidden]right-> server
+server -[hidden]right-> dc
+
+' row 3 layout
+instance -[hidden]up-> asg
+instance -[hidden]right-> sf
+sf -[hidden]right-> account
+account -[hidden]right-> iotgd
+iotgd -[hidden]right-> iotg
+iotg -[hidden]right-> beanstalk
+
+' row 4 layout
+sfw -[hidden]up-> instance
+sfw -[hidden]right-> g1
+g1 -[hidden]right-> g2
+@enduml

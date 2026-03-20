@@ -1,0 +1,40 @@
+@startuml Serverless API
+
+' Uncomment the line below for "dark mode" styling
+'!$AWS_DARK = true
+
+!define AWSPuml https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v22.0/dist
+!include AWSPuml/AWSCommon.puml
+!include AWSPuml/AWSExperimental.puml
+!include AWSPuml/NetworkingContentDelivery/APIGateway.puml
+!include AWSPuml/Compute/Lambda.puml
+!include AWSPuml/Database/DynamoDB.puml
+!include AWSPuml/General/Client.puml
+!include AWSPuml/Groups/AWSCloud.puml
+!include AWSPuml/Storage/SimpleStorageService.puml
+
+' Groups are rectangles with a custom style using stereotype - need to hide
+hide stereotype
+skinparam linetype ortho
+skinparam rectangle {
+    BorderColor transparent
+}
+
+rectangle "$ClientIMG()\nClient" as client
+AWSCloudGroup(cloud){
+  rectangle "$APIGatewayIMG()\nAmazon API\nGateway" as api
+  rectangle "$LambdaIMG()\nAWS Lambda\n" as lambda
+  rectangle "$DynamoDBIMG()\nAmazon DynamoDB\n" as dynamodb
+  rectangle "$SimpleStorageServiceIMG()\nAmazon S3" as s3
+  rectangle "$LambdaIMG()\nAWS Lambda" as trigger
+
+  client -right-> api: \n<$Callout_1>
+  api -right-> lambda: \n<$Callout_2>
+  lambda -right-> dynamodb: \n<$Callout_3>
+  api -[hidden]down-> s3
+  client -right-> s3: <$Callout_4><$Callout_SP>
+  s3 -right-> trigger: \n<$Callout_5>
+  trigger -[hidden]up-> lambda
+  trigger -u-> dynamodb: <$Callout_6><$Callout_SP>\n
+}
+@enduml

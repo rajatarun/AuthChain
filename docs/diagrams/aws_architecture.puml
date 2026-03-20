@@ -6,7 +6,7 @@ skinparam linetype ortho
 skinparam nodesep 60
 skinparam ranksep 80
 
-!define AWSLIB awslib/aws-icons-for-plantuml/dist
+!define AWSLIB assets/awslib/aws-icons-for-plantuml/dist
 
 !include AWSLIB/AWSCommon.puml
 !include AWSLIB/NetworkingContentDelivery/APIGateway.puml

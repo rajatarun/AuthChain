@@ -1,6 +1,6 @@
 @startuml c4_architecture
-!include c4lib/C4-PlantUML/C4_Context.puml
-!include c4lib/C4-PlantUML/C4_Container.puml
+!include assets/c4lib/C4-PlantUML/C4_Context.puml
+!include assets/c4lib/C4-PlantUML/C4_Container.puml
 
 LAYOUT_WITH_LEGEND()
 

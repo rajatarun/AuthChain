@@ -256,6 +256,7 @@ async function handleIngest(payload, requestId) {
     .filter(o => !o.Key.endsWith("/"))
     .filter(o => (o.Size ?? 0) > 0)
     .filter(o => supportedExt.has(extOfKey(o.Key)))
+    .filter(o => !o.Key.split("/").includes("assets"))
     .map(o => o.Key)
     .slice(0, maxFiles);
 

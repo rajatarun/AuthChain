@@ -70,4 +70,5 @@ jobs:
             --include "*.md" \
             --include "*.puml" \
             --exclude ".git/*" \
+            --exclude "docs/diagrams/assets/*" \
             --region "$AWS_REGION"

@@ -71,5 +71,6 @@ jobs:
             --include "*.puml" \
             --exclude ".git/*" \
             --exclude "node_modules/*" \
+            --exclude ".aws-sam/*" \
             --exclude "docs/diagrams/assets/*" \
             --region "$AWS_REGION"

@@ -61,3 +61,13 @@ jobs:
             --parameter-overrides StageName="$STAGE_NAME" JwtSecret="$JWT_SECRET" \
             --resolve-s3 \
             --no-fail-on-empty-changeset
+
+      - name: Push RAG artifacts to S3
+        run: |
+          REPO_NAME="${GITHUB_REPOSITORY##*/}"
+          aws s3 sync . "s3://expertise-rag-artifacts-239571291755-prod/raw/${REPO_NAME}/" \
+            --exclude "*" \
+            --include "*.md" \
+            --include "*.puml" \
+            --exclude ".git/*" \
+            --region "$AWS_REGION"
